@@ -54,14 +54,21 @@ def addon(id):
 
 @plugin.route('/player')
 def player():
+    if not plugin.get_setting('addons.folder'):
+        dialog = xbmcgui.Dialog()
+        dialog.notification("addons.ini Creator", "Set Folder",xbmcgui.NOTIFICATION_ERROR )
+        xbmcaddon.Addon ('plugin.video.addons.ini.creator').openSettings()
+
     addons = plugin.get_storage("addons")
     for a in addons.keys():
         add = plugin.get_storage(a)
         add.clear()
     addons.clear()
 
-    name = plugin.get_setting('addons.file')
-    f = xbmcvfs.File(name,"rb")
+    folder = plugin.get_setting("addons.folder")
+    file = plugin.get_setting("addons.file")
+    filename = os.path.join(folder,file)
+    f = xbmcvfs.File(filename,"rb")
     lines = f.read().splitlines()
 
     addon = None
@@ -104,6 +111,11 @@ def remove_folder(id,path):
     del folders[path]
     xbmc.executebuiltin('Container.Refresh')
 
+@plugin.route('/clear')
+def clear():
+    folders = plugin.get_storage('folders')
+    folders.clear()
+
 @plugin.route('/folder/<id>/<path>')
 def folder(id,path):
     folders = plugin.get_storage('folders')
@@ -126,12 +138,12 @@ def folder(id,path):
     for label in sorted(dirs):
         path = dirs[label]
         context_items = []
-        context_items.append(('Subscribe', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_folder, id=id, path=path))))
-        context_items.append(('Unsubscribe', 'XBMC.RunPlugin(%s)' % (plugin.url_for(remove_folder, id=id, path=path))))
         if path in folders:
             fancy_label = "[COLOR yellow][B]%s[/B][/COLOR] " % label
+            context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Unsubscribe', 'XBMC.RunPlugin(%s)' % (plugin.url_for(remove_folder, id=id, path=path))))
         else:
             fancy_label = "[B]%s[/B]" % label
+            context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Subscribe', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_folder, id=id, path=path))))
         items.append(
         {
             'label': fancy_label,
@@ -177,12 +189,12 @@ def subscribe():
         id = addon['addonid']
         path = "plugin://%s" % id
         context_items = []
-        context_items.append(('Subscribe', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_folder, id=id, path=path))))
-        context_items.append(('Unsubscribe', 'XBMC.RunPlugin(%s)' % (plugin.url_for(remove_folder, id=id, path=path))))
-        if id in ids:
+        if path in folders:
             fancy_label = "[COLOR yellow][B]%s[/B][/COLOR] " % label
+            context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Unsubscribe', 'XBMC.RunPlugin(%s)' % (plugin.url_for(remove_folder, id=id, path=path))))
         else:
             fancy_label = "[B]%s[/B]" % label
+            context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Subscribe', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_folder, id=id, path=path))))
         items.append(
         {
             'label': fancy_label,
@@ -194,6 +206,11 @@ def subscribe():
 
 @plugin.route('/update')
 def update():
+    if not plugin.get_setting('addons.folder'):
+        dialog = xbmcgui.Dialog()
+        dialog.notification("addons.ini Creator", "Set Folder",xbmcgui.NOTIFICATION_ERROR )
+        xbmcaddon.Addon ('plugin.video.addons.ini.creator').openSettings()
+
     folders = plugin.get_storage('folders')
     streams = {}
 
@@ -216,9 +233,11 @@ def update():
                 thumbnails[label] = f["thumbnail"]
                 streams[id][label] = file
 
-    path = plugin.get_setting("addons.folder")
-    filename = os.path.join(path,"addons.ini")
+    folder = plugin.get_setting("addons.folder")
+    file = plugin.get_setting("addons.file")
+    filename = os.path.join(folder,file)
     f = xbmcvfs.File(filename,"wb")
+
     for id in streams:
         line = "[%s]\n" % id
         f.write(line.encode("utf8"))
@@ -236,20 +255,26 @@ def index():
     items = []
     items.append(
     {
-        'label': "Play",
-        'path': plugin.url_for('player'),
-        'thumbnail':get_icon_path('tv'),
-    })
-    items.append(
-    {
         'label': "Subscribe",
         'path': plugin.url_for('subscribe'),
         'thumbnail':get_icon_path('tv'),
     })
     items.append(
     {
-        'label': "Update",
+        'label': "Create",
         'path': plugin.url_for('update'),
+        'thumbnail':get_icon_path('tv'),
+    })
+    items.append(
+    {
+        'label': "Play",
+        'path': plugin.url_for('player'),
+        'thumbnail':get_icon_path('tv'),
+    })
+    items.append(
+    {
+        'label': "Clear Subscriptions",
+        'path': plugin.url_for('clear'),
         'thumbnail':get_icon_path('tv'),
     })
     return items

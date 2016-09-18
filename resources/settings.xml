@@ -1,8 +1,9 @@
 <settings>
-<category label="Source">
-<setting id="addons.folder" label="addons.ini Folder" type="folder"/>
+<category label="addons.ini File">
+<setting id="addons.folder" label="Folder" type="folder" default=""/>
+<setting id="addons.file" label="Filename" type="text" default="addons.ini"/>
 </category>
-<category label="Display">
+<!--<category label="Display">
 <setting id="view_mode" label="View Mode" type="number" default="51" />
-</category>
+</category>-->
 </settings>
