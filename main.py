@@ -189,7 +189,7 @@ def subscribe():
         id = addon['addonid']
         path = "plugin://%s" % id
         context_items = []
-        if path in folders:
+        if id in ids:
             fancy_label = "[COLOR yellow][B]%s[/B][/COLOR] " % label
             context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Unsubscribe', 'XBMC.RunPlugin(%s)' % (plugin.url_for(remove_folder, id=id, path=path))))
         else:
