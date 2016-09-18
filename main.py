@@ -88,20 +88,33 @@ def player():
 
 @plugin.route('/play/<url>')
 def play(url):
-    xbmc.executebuiltin('PlayMedia(%s,1)' % url)
+    xbmc.executebuiltin('PlayMedia(%s)' % url)
 
-@plugin.route('/folder/<path>')
-def folder(path):
+@plugin.route('/add_folder/<id>/<path>')
+def add_folder(id,path):
+    folders = plugin.get_storage('folders')
+    #ids = plugin.get_storage('ids')
+    folders[path] = id
+    #ids[id] = id
+    xbmc.executebuiltin('Container.Refresh')
+
+@plugin.route('/remove_folder/<id>/<path>')
+def remove_folder(id,path):
+    folders = plugin.get_storage('folders')
+    del folders[path]
+    xbmc.executebuiltin('Container.Refresh')
+
+@plugin.route('/folder/<id>/<path>')
+def folder(id,path):
+    folders = plugin.get_storage('folders')
     response = RPC.files.get_directory(media="files", directory=path, properties=["thumbnail"])
     files = response["files"]
-    dirs = dict([[f["label"], f["file"]] for f in files if f["filetype"] == "directory"])
+    dirs = dict([[remove_formatting(f["label"]), f["file"]] for f in files if f["filetype"] == "directory"])
     links = {}
     thumbnails = {}
     for f in files:
         if f["filetype"] == "file":
-            label = f["label"]
-            label = re.sub(r'\[[BI]\]','',label)
-            label = re.sub(r'\[/?COLOR.*?\]','',label)
+            label = remove_formatting(f["label"])
             file = f["file"]
             while (label in links):
                 label = "%s." % label
@@ -111,11 +124,20 @@ def folder(path):
     items = []
 
     for label in sorted(dirs):
+        path = dirs[label]
+        context_items = []
+        context_items.append(('Subscribe', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_folder, id=id, path=path))))
+        context_items.append(('Unsubscribe', 'XBMC.RunPlugin(%s)' % (plugin.url_for(remove_folder, id=id, path=path))))
+        if path in folders:
+            fancy_label = "[COLOR yellow][B]%s[/B][/COLOR] " % label
+        else:
+            fancy_label = "[B]%s[/B]" % label
         items.append(
         {
-            'label': label,
-            'path': plugin.url_for('folder',path=dirs[label]),
+            'label': fancy_label,
+            'path': plugin.url_for('folder',id=id, path=path),
             'thumbnail': get_icon_path('tv'),
+            'context_menu': context_items,
         })
 
     for label in sorted(links):
@@ -129,6 +151,11 @@ def folder(path):
 
 @plugin.route('/subscribe')
 def subscribe():
+    folders = plugin.get_storage('folders')
+    ids = {}
+    for folder in folders:
+        id = folders[folder]
+        ids[id] = id
     all_addons = []
     for type in ["xbmc.addon.video", "xbmc.addon.audio"]:
         response = RPC.addons.get_addons(type=type,properties=["name", "thumbnail"])
@@ -146,14 +173,63 @@ def subscribe():
     items = []
     addons = sorted(addons, key=lambda addon: remove_formatting(addon['name']).lower())
     for addon in addons:
-        path = "plugin://%s" % addon['addonid']
+        label = addon['name']
+        id = addon['addonid']
+        path = "plugin://%s" % id
+        context_items = []
+        context_items.append(('Subscribe', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_folder, id=id, path=path))))
+        context_items.append(('Unsubscribe', 'XBMC.RunPlugin(%s)' % (plugin.url_for(remove_folder, id=id, path=path))))
+        if id in ids:
+            fancy_label = "[COLOR yellow][B]%s[/B][/COLOR] " % label
+        else:
+            fancy_label = "[B]%s[/B]" % label
         items.append(
         {
-            'label': addon['name'],
-            'path': plugin.url_for('folder',path=path),
-            'thumbnail': addon['thumbnail'],
+            'label': fancy_label,
+            'path': plugin.url_for('folder',id=id, path=path),
+            'thumbnail': get_icon_path('tv'),
+            'context_menu': context_items,
         })
     return items
+
+@plugin.route('/update')
+def update():
+    folders = plugin.get_storage('folders')
+    streams = {}
+
+    for folder in folders:
+        path = folder
+        id = folders[folder]
+        if not id in streams:
+            streams[id] = {}
+        response = RPC.files.get_directory(media="files", directory=path, properties=["thumbnail"])
+        files = response["files"]
+        links = {}
+        thumbnails = {}
+        for f in files:
+            if f["filetype"] == "file":
+                label = remove_formatting(f["label"])
+                file = f["file"]
+                while (label in links):
+                    label = "%s." % label
+                links[label] = file
+                thumbnails[label] = f["thumbnail"]
+                streams[id][label] = file
+
+    path = plugin.get_setting("addons.folder")
+    filename = os.path.join(path,"addons.ini")
+    f = xbmcvfs.File(filename,"wb")
+    for id in streams:
+        line = "[%s]\n" % id
+        f.write(line.encode("utf8"))
+        channels = streams[id]
+        for channel in channels:
+            url = channels[channel]
+            line = "%s=%s\n" % (channel,url)
+            f.write(line.encode("utf8"))
+    f.close()
+
+
 
 @plugin.route('/')
 def index():
@@ -168,6 +244,12 @@ def index():
     {
         'label': "Subscribe",
         'path': plugin.url_for('subscribe'),
+        'thumbnail':get_icon_path('tv'),
+    })
+    items.append(
+    {
+        'label': "Update",
+        'path': plugin.url_for('update'),
         'thumbnail':get_icon_path('tv'),
     })
     return items
