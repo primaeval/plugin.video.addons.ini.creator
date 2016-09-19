@@ -206,7 +206,8 @@ def pvr():
         items.append(
         {
             'label': name,
-            'path': plugin.url_for('play',url=url),
+            'path': url,
+            'is_playable': True,
         })
     return items
 
@@ -313,11 +314,11 @@ def update():
     filename = os.path.join(folder,file)
     f = xbmcvfs.File(filename,"wb")
 
-    for id in streams:
+    for id in sorted(streams):
         line = "[%s]\n" % id
         f.write(line.encode("utf8"))
         channels = streams[id]
-        for channel in channels:
+        for channel in sorted(channels):
             url = channels[channel]
             line = "%s=%s\n" % (channel,url)
             f.write(line.encode("utf8"))
