@@ -173,36 +173,26 @@ def folder(id,path):
 
 @plugin.route('/pvr')
 def pvr():
-    path = xbmc.translatePath("special://profile/Database/TV29.db")
-    conn = sqlite3.connect(path)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    c.execute('SELECT * FROM channels')
-    clients = {}
+    index = 0
+    urls = []
     channels = {}
-    for row in c:
-        name = row["sChannelName"]
-        id = row["iUniqueId"]
-        client = row["iClientId"]
-        clients[client] = ""
-        channels[id] = (name,client)
-
-    path = xbmc.translatePath("special://profile/Database/Addons20.db")
-    conn = sqlite3.connect(path)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    for client in clients:
-        c.execute('SELECT addonID FROM addon WHERE id = ?', [client])
-        row = c.fetchone()
-        id = row["addonID"]
-        clients[client] = id
-    c.close()
-
+    for group in ["radio","tv"]:
+        urls = urls + xbmcvfs.listdir("pvr://channels/%s/All channels/" % group)[1]
+    for group in ["radio","tv"]:
+        groupid = "all%s" % group
+        json_query = RPC.PVR.get_channels(channelgroupid=groupid, properties=[ "thumbnail", "channeltype", "hidden", "locked", "channel", "lastplayed", "broadcastnow" ] )
+        if "channels" in json_query:
+            for channel in json_query["channels"]:
+                channelname = channel["label"]
+                channelid = channel["channelid"]-1
+                channellogo = channel['thumbnail']
+                streamUrl = urls[index]
+                index = index + 1
+                url = "pvr://channels/%s/All channels/%s" % (group,streamUrl)
+                channels[url] = channelname
     items = []
-    for id in sorted(channels, key=lambda x: channels[x][0]):
-        (name,client) = channels[id]
-        addon = clients[client]
-        url = "pvr://channels/tv/All channels/%s_%s.pvr" % (addon,id)
+    for url in sorted(channels, key=lambda x: channels[x]):
+        name = channels[url]
         items.append(
         {
             'label': name,
