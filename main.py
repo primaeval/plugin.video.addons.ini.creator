@@ -5,7 +5,7 @@ import re
 from rpc import RPC
 import requests
 import random
-
+import sqlite3
 from datetime import datetime,timedelta
 import time
 #import urllib
@@ -97,6 +97,16 @@ def player():
 def play(url):
     xbmc.executebuiltin('PlayMedia(%s)' % url)
 
+@plugin.route('/pvr_subscribe')
+def pvr_subscribe():
+    plugin.set_setting("pvr.subscribe","true")
+    xbmc.executebuiltin('Container.Refresh')
+
+@plugin.route('/pvr_unsubscribe')
+def pvr_unsubscribe():
+    plugin.set_setting("pvr.subscribe","false")
+    xbmc.executebuiltin('Container.Refresh')
+
 @plugin.route('/add_folder/<id>/<path>')
 def add_folder(id,path):
     folders = plugin.get_storage('folders')
@@ -161,6 +171,45 @@ def folder(id,path):
         })
     return items
 
+@plugin.route('/pvr')
+def pvr():
+    path = xbmc.translatePath("special://profile/Database/TV29.db")
+    conn = sqlite3.connect(path)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute('SELECT * FROM channels')
+    clients = {}
+    channels = {}
+    for row in c:
+        name = row["sChannelName"]
+        id = row["iUniqueId"]
+        client = row["iClientId"]
+        clients[client] = ""
+        channels[id] = (name,client)
+
+    path = xbmc.translatePath("special://profile/Database/Addons20.db")
+    conn = sqlite3.connect(path)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    for client in clients:
+        c.execute('SELECT addonID FROM addon WHERE id = ?', [client])
+        row = c.fetchone()
+        id = row["addonID"]
+        clients[client] = id
+    c.close()
+
+    items = []
+    for id in sorted(channels, key=lambda x: channels[x][0]):
+        (name,client) = channels[id]
+        addon = clients[client]
+        url = "pvr://channels/tv/All channels/%s_%s.pvr" % (addon,id)
+        items.append(
+        {
+            'label': name,
+            'path': plugin.url_for('play',url=url),
+        })
+    return items
+
 @plugin.route('/subscribe')
 def subscribe():
     folders = plugin.get_storage('folders')
@@ -183,6 +232,24 @@ def subscribe():
         seen.add(addon['addonid'])
 
     items = []
+
+    pvr = plugin.get_setting('pvr.subscribe')
+    context_items = []
+    label = "PVR"
+    if pvr == "true":
+        fancy_label = "[COLOR yellow][B]%s[/B][/COLOR] " % label
+        context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Unsubscribe', 'XBMC.RunPlugin(%s)' % (plugin.url_for(pvr_unsubscribe))))
+    else:
+        fancy_label = "[B]%s[/B]" % label
+        context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Subscribe', 'XBMC.RunPlugin(%s)' % (plugin.url_for(pvr_subscribe))))
+    items.append(
+    {
+        'label': fancy_label,
+        'path': plugin.url_for('pvr'),
+        'thumbnail':get_icon_path('tv'),
+        'context_menu': context_items,
+    })
+
     addons = sorted(addons, key=lambda addon: remove_formatting(addon['name']).lower())
     for addon in addons:
         label = addon['name']
@@ -233,6 +300,14 @@ def update():
                 thumbnails[label] = f["thumbnail"]
                 streams[id][label] = file
 
+    if plugin.get_setting("pvr.subscribe") == "true":
+        streams["plugin.video.addons.ini.creator"] = {}
+        items = pvr()
+        for item in items:
+            name = item["label"]
+            url = item["path"]
+            streams["plugin.video.addons.ini.creator"][name] = url
+
     folder = plugin.get_setting("addons.folder")
     file = plugin.get_setting("addons.file")
     filename = os.path.join(folder,file)
@@ -253,6 +328,7 @@ def update():
 @plugin.route('/')
 def index():
     items = []
+
     items.append(
     {
         'label': "Subscribe",
