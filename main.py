@@ -314,7 +314,46 @@ def update():
             f.write(line.encode("utf8"))
     f.close()
 
+@plugin.route('/search/<what>')
+def search(what):
+    log2(what)
+    if not what:
+        return
+    items = []
+    addons = plugin.get_storage("addons")
+    log2(addons.keys())
+    for a in addons.keys():
+        add = plugin.get_storage(a)
+        log2(add.keys())
+        exact = [x for x in add.keys() if x.lower() == what.lower()]
+        log2(exact)
+        partial = [x for x in add.keys() if what.lower() in x.lower()]
+        found = exact + partial
+        for f in sorted(set(exact)):
+            items.append({
+                "label": "[COLOR green]%s [%s][/COLOR]" % (f,a),
+                "path" : add[f],
+                "is_playable" : True,
+            })
+        for f in sorted(set(partial)-set(exact)):
+            items.append({
+                "label": "[COLOR orange]%s [%s][/COLOR]" % (f,a),
+                "path" : add[f],
+                "is_playable" : True,
+            })
+    return items
 
+
+
+
+
+
+@plugin.route('/search_dialog')
+def search_dialog():
+    dialog = xbmcgui.Dialog()
+    what = dialog.input("Search")
+    if what:
+        return search(what)
 
 @plugin.route('/')
 def index():
@@ -336,6 +375,12 @@ def index():
     {
         'label': "Play",
         'path': plugin.url_for('player'),
+        'thumbnail':get_icon_path('tv'),
+    })
+    items.append(
+    {
+        'label': "Search",
+        'path': plugin.url_for('search_dialog'),
         'thumbnail':get_icon_path('tv'),
     })
     items.append(
