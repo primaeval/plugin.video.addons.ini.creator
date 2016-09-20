@@ -316,18 +316,34 @@ def update():
 
 @plugin.route('/search/<what>')
 def search(what):
-    log2(what)
     if not what:
         return
-    items = []
     addons = plugin.get_storage("addons")
-    log2(addons.keys())
+    folder = plugin.get_setting("addons.folder")
+    file = plugin.get_setting("addons.file")
+    filename = os.path.join(folder,file)
+    f = xbmcvfs.File(filename,"rb")
+    lines = f.read().splitlines()
+    addon = None
+    for line in lines:
+        if line.startswith('['):
+            a = line.strip('[]')
+            addons[a] = a
+            addon = plugin.get_storage(a)
+            addon.clear()
+        elif "=" in line:
+            (name,url) = line.split('=',1)
+            if url and addon is not None:
+                addon[name] = url
+
+    items = []
     for a in addons.keys():
         add = plugin.get_storage(a)
         log2(add.keys())
         exact = [x for x in add.keys() if x.lower() == what.lower()]
         log2(exact)
         partial = [x for x in add.keys() if what.lower() in x.lower()]
+        ignore_space = [x for x in add.keys() if re.sub(' ','',what).lower() in re.sub(' ','',x).lower()]
         found = exact + partial
         for f in sorted(set(exact)):
             items.append({
@@ -338,6 +354,12 @@ def search(what):
         for f in sorted(set(partial)-set(exact)):
             items.append({
                 "label": "[COLOR orange]%s [%s][/COLOR]" % (f,a),
+                "path" : add[f],
+                "is_playable" : True,
+            })
+        for f in sorted(set(ignore_space)-set(partial)-set(exact)):
+            items.append({
+                "label": "[COLOR red]%s [%s][/COLOR]" % (f,a),
                 "path" : add[f],
                 "is_playable" : True,
             })
