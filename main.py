@@ -278,18 +278,19 @@ def update():
         if not id in streams:
             streams[id] = {}
         response = RPC.files.get_directory(media="files", directory=path, properties=["thumbnail"])
-        files = response["files"]
-        links = {}
-        thumbnails = {}
-        for f in files:
-            if f["filetype"] == "file":
-                label = remove_formatting(f["label"])
-                file = f["file"]
-                while (label in links):
-                    label = "%s." % label
-                links[label] = file
-                thumbnails[label] = f["thumbnail"]
-                streams[id][label] = file
+        if not 'error' in response:
+            files = response["files"]
+            links = {}
+            thumbnails = {}
+            for f in files:
+                if f["filetype"] == "file":
+                    label = remove_formatting(f["label"])
+                    file = f["file"]
+                    while (label in links):
+                        label = "%s." % label
+                    links[label] = file
+                    thumbnails[label] = f["thumbnail"]
+                    streams[id][label] = file
 
     if plugin.get_setting("pvr.subscribe") == "true":
         streams["plugin.video.addons.ini.creator"] = {}
