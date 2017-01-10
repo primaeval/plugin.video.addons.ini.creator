@@ -243,7 +243,7 @@ def subscribe():
 
     addons = sorted(addons, key=lambda addon: remove_formatting(addon['name']).lower())
     for addon in addons:
-        label = addon['name']
+        label = remove_formatting(addon['name'])
         id = addon['addonid']
         path = "plugin://%s" % id
         context_items = []
@@ -365,11 +365,6 @@ def search(what):
                 "is_playable" : True,
             })
     return items
-
-
-
-
-
 
 @plugin.route('/search_dialog')
 def search_dialog():
