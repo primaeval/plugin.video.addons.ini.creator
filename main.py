@@ -453,14 +453,28 @@ def stream_search(channel):
             label_search = label.lower().replace(' ','')
             if label_search in channel_search or channel_search in label_search:
                 stream_list.append((id,f,label))
-    labels = ["[%s] %s" % (x[0],x[2]) for x in stream_list]
-    d = xbmcgui.Dialog()
-    which = d.select(channel, labels)
-    if which == -1:
-        return
-    stream_name = stream_list[which][2]
-    stream_link = stream_list[which][1]
-    plugin.set_resolved_url(stream_link)
+
+    if plugin.get_setting('play') == 'true':
+        labels = ["[%s] %s" % (x[0],x[2]) for x in stream_list]
+        d = xbmcgui.Dialog()
+        which = d.select(channel, labels)
+        if which == -1:
+            return
+        stream_name = stream_list[which][2]
+        stream_link = stream_list[which][1]
+        plugin.set_resolved_url(stream_link)
+    else:
+        items = []
+        for stream_item in sorted(stream_list, key=lambda x: (x[0],x[1])):
+            log(stream_item)
+            label = "[%s] %s" % (stream_item[0],stream_item[2])
+            items.append(
+            {
+                'label': label,
+                'path': stream_item[1],
+                'thumbnail': get_icon_path('tv'),
+            })
+        return items
 
 
 
@@ -475,12 +489,16 @@ def channel_player():
         context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Remove Channel', 'XBMC.RunPlugin(%s)' % (plugin.url_for(remove_this_channel, channel=channel))))
         context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Import Channels', 'XBMC.RunPlugin(%s)' % (plugin.url_for(import_channels))))
         context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Clear Channels', 'XBMC.RunPlugin(%s)' % (plugin.url_for(clear_channels))))
+        if plugin.get_setting('play') == 'true':
+            is_playable = True
+        else:
+            is_playable = False
         items.append(
         {
             'label': channel,
             'path': plugin.url_for('stream_search',channel=channel),
             'thumbnail':get_icon_path('tv'),
-            'is_playable': True,
+            'is_playable': is_playable,
             'context_menu': context_items,
         })
     return items

@@ -1,7 +1,8 @@
 <settings>
-<category label="addons.ini File">
+<category label="General">
 <setting id="addons.folder" label="Folder" type="folder" default=""/>
 <setting id="addons.file" label="Filename" type="text" default="addons.ini"/>
+<setting id="play" label="Play Stream" type="bool" default="false" />
 </category>
 <!--<category label="Display">
 <setting id="view_mode" label="View Mode" type="number" default="51" />
