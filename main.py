@@ -273,6 +273,7 @@ def update():
     streams = {}
 
     for folder in folders:
+        log("[plugin.video.addons.ini.creator] " + folder)
         path = folder
         id = folders[folder]
         if not id in streams:
@@ -314,6 +315,7 @@ def update():
             line = "%s=%s\n" % (channel,url)
             f.write(line.encode("utf8"))
     f.close()
+    xbmcgui.Dialog().notification("addons.ini Creator", "Finished Update")
 
 @plugin.route('/search/<what>')
 def search(what):
